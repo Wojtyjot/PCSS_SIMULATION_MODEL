@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 from typing import *
-#from utils import *
+
+# from utils import *
 
 # ZAŁOŻENIE dane w formie padas dtataframe i na tej podstawie tworzymy skrypt
 # TRZEBA ZAPISYWAC TE CSV BY BYŁO MOZNA UŻYC JAKO FEAT W GNOT
@@ -41,7 +42,7 @@ def add_segments(
     script_name: str,
     num_seg: int,
     names: list,
-    #idx: list,
+    # idx: list,
     L: list,
     Nx: list,
     start_nodes: list,
@@ -103,6 +104,70 @@ def add_segments(
         f.close()
 
 
+def add_segment(
+    script_name: str,
+    name: str,
+    id: int,
+    L: float,
+    Nx: int,
+    inode: int,
+    onode: int,
+    iarea: float,
+    oarea: float,
+    iflow: float,
+    material: str,
+    mltype: str,
+    angle: float,
+    uid: int,
+    bid: int,
+    bctype: str,
+    dname: str,
+) -> None:
+    """
+    Function ads SEGMENT keywords to script
+
+    SEGMENT name id length nelems inode onode iarea oarea\
+          iflow material mltype angle uid bid bctype dname
+
+    name (string) - Segment name.
+
+    id (integer) - Segment ID.
+
+    length (double - Segment length.
+
+    nelems (integer) - Total finite elements in segment.
+
+    inode (integer) - Segment inlet Node.
+
+    onode (integer) - Segment outlet Node.
+
+    iarea (double - Segment inlet area.
+
+    oarea (double) - Segment outlet area.
+
+    iflow (double) - Segment initial flow.
+
+    material (string) - Segment material.
+
+    mltype (string) - Minor loss type. (NONE or STENOSIS)
+
+    angle (double) - Branch angle. (not used)
+
+    uid (integer) - Upstream segment ID. (in cases of STENOSIS minor loss type)
+
+    bid (integer) - Branch segment ID. (not used)
+
+    bctype (string) - Outlet boundary condition type.
+
+    dname (string) - Data Table Name for boundary condition.
+    """
+    with open(f"{script_name}.txt", "a") as f:
+        f.write(
+            f"SEGMENT {name} {id} {L} {Nx} {inode} {onode} {iarea} {oarea} {iflow} {material} {mltype} {angle} {uid} {bid} {bctype} {dname}\n"
+        )
+        f.close()
+
+
 def add_rcr_vlas(
     script_name: str, dname: list, outlet: list, R1: list, R2: list, CT: list
 ) -> None:
@@ -155,17 +220,22 @@ def add_material(
     pressure: float,
     exponent: float,
     k1: float,
-    k2: float,
-    k3: float,
+    k2: Optional[float] = None,
+    k3: Optional[float] = None,
 ) -> None:
     """
     Function adds MATERIAL keyword to script
     """
     with open(f"{script_name}.txt", "a") as f:
         # Nie wiem czy to zadziala z linear do zobaczenia chociaz raczej nie bede tego uzywac
-        f.write(
-            f"MATERIAL {name} {type} {density} {viscosity} {pressure} {exponent} {k1} {k2} {k3}\n"
-        )
+        if type == "LINEAR":
+            f.write(
+                f"MATERIAL {name} {type} {density} {viscosity} {pressure} {exponent} {k1}\n"
+            )
+        elif type == "OLUFSEN":
+            f.write(
+                f"MATERIAL {name} {type} {density} {viscosity} {pressure} {exponent} {k1} {k2} {k3}\n"
+            )
         f.close()
 
 
@@ -245,12 +315,31 @@ def add_joint_outlet(
         f.close()
 
 
+def compute_k1(df: pd.DataFrame, id: int) -> float:
+    """
+    Function computes k1 coeficient for linear material model
+
+    Eh/r0 = k1
+    """
+    print(df[df.id == id].name)
+    print(f"modulus: {df[df.id == id].modulus.iloc[0]}")
+    print(f"thickness: {df[df.id == id].thickness.iloc[0]}")
+    print(f"r0_in: {df[df.id == id].r0_in.iloc[0]}")
+    print(
+        f"eh/r = {df[df.id == id].modulus.iloc[0] * df[df.id == id].thickness.iloc[0] / df[df.id == id].r0_in.iloc[0]}"
+    )
+    return (df[df.id == id].modulus.iloc[0] * df[df.id == id].thickness.iloc[0]) / df[
+        df.id == id
+    ].r0_in.iloc[0]
+
+
 def create_script(
     df: pd.DataFrame,
     df_joints: pd.DataFrame,
     script_name: str,
     model: str,
     flow: np.ndarray,
+    olufsen: bool = False,
 ) -> None:
     """
     Function creates script for simvascular onedsolver from pandas dataframe
@@ -266,40 +355,79 @@ def create_script(
     # nx bedą stałymi = 1000
     initialize_script(script_name, model)
     add_model_name(script_name, model)
-    add_material(
-        script_name=script_name,
-        name="MAT",
-        type="OLUFSEN",
-        density=1.06,
-        viscosity=0.04,
-        pressure=99991.77631578947,  # 75mmHg
-        exponent=2.0,  # polynomial order of flow 2.0 = parabolic
-        k1=2e7,  # Ba
-        k2=-22.53,  # cm^-1
-        k3=8.65e5,  # Ba
-    )
+    # Quick hack
+    if olufsen:
+        add_material(
+            script_name=script_name,
+            name="MAT",
+            type="OLUFSEN",
+            density=1.06,
+            viscosity=0.04,
+            pressure=99991.77631578947,  # 75mmHg
+            exponent=2.0,  # polynomial order of flow 2.0 = parabolic
+            k1=2e7,  # Ba
+            k2=-22.53,  # cm^-1
+            k3=8.65e5,  # Ba
+        )
+        add_segments(
+            script_name=script_name,
+            num_seg=len(df),
+            names=df.name,
+            # root_node=df.root_node,
+            L=df.L,
+            Nx=50,
+            start_nodes=df.sn,
+            end_nodes=df.tn,
+            area_inlet=df.area_inlet,
+            area_outlet=df.area_outlet,
+            initial_flow=0.0,
+            material="MAT",
+            ml_type="NONE",
+            angle=0.0,
+            uid=0,
+            bid=0,
+            bc_type=df.bc_type,
+            dname=df.dname,
+        )
+
+    else:
+        for id in df.id:
+            k1 = compute_k1(df, id)
+            print(k1)
+            add_material(
+                script_name=script_name,
+                name=f"MAT{id}",
+                type="LINEAR",
+                density=1.06,
+                viscosity=0.04,
+                pressure=0.0,  # 99991.77631578947,  # 75mmHg
+                exponent=2.0,  # polynomial order of flow 2.0 = parabolic
+                k1=k1,
+            )
+            add_segment(
+                script_name=script_name,
+                name=df[df.id == id].name.iloc[0],
+                id=id,
+                L=df[df.id == id].L.iloc[0],
+                Nx=100,
+                inode=df[df.id == id].sn.iloc[0],
+                onode=df[df.id == id].tn.iloc[0],
+                iarea=df[df.id == id].area_inlet.iloc[0],
+                oarea=df[df.id == id].area_outlet.iloc[0],
+                iflow=0.0,
+                material=f"MAT{id}",
+                mltype="NONE",
+                angle=0.0,
+                uid=0,
+                bid=0,
+                bctype=df[df.id == id].bc_type.iloc[0],
+                dname=df[df.id == id].dname.iloc[0],
+            )
+
     # Pytanie czy dodać inny material dla naczyn\COW
     add_nodes(script_name, len(df.node_list.dropna()))
-    add_segments(
-        script_name=script_name,
-        num_seg=len(df),
-        names=df.name,
-        # root_node=df.root_node,
-        L=df.L,
-        Nx=50,
-        start_nodes=df.sn,
-        end_nodes=df.tn,
-        area_inlet=df.area_inlet,
-        area_outlet=df.area_outlet,
-        initial_flow=0.0,
-        material="MAT",
-        ml_type="NONE",
-        angle=0.0,
-        uid=0,
-        bid=0,
-        bc_type=df.bc_type,
-        dname=df.dname,
-    )
+    # dodawanie matertialóœ do segmentu ogarnac
+
     add_rcr_vlas(script_name, df.dname, df.outlet, df.R1, df.R2, df.C)
     add_inlet_bc2(script_name, flow)
     add_joints(
@@ -308,7 +436,7 @@ def create_script(
         d1=df_joints.d1,
         d2=df_joints.d2,
         merging=df_joints.merging,
-        tn=df.tn
+        tn=df.tn,
     )
     add_joint_inlet(
         script_name=script_name,
@@ -324,20 +452,17 @@ def create_script(
         d2=df_joints.d2,
         merging=df_joints.merging,
     )
-    
-    add_output(
-        script_name=script_name,
-        format='TEXT'
-    )
+
+    add_output(script_name=script_name, format="TEXT")
     add_solver_options(
         script_name=script_name,
         timestep=0.001,
         savefreq=10,
         maxsteps=10000,
         nquad=4,
-        dname='PULS_FLOW',
-        bctype='FLOW',
+        dname="PULS_FLOW",
+        bctype="FLOW",
         tol=1e-8,
         form=1,
-        stab=1
+        stab=1,
     )

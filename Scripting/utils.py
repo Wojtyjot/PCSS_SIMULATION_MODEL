@@ -39,7 +39,7 @@ def add_segments(
     script_name: str,
     num_seg: int,
     names: list,
-    #idx: list,
+    # idx: list,
     L: list,
     Nx: list,
     start_nodes: list,
