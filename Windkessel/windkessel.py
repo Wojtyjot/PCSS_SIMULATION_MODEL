@@ -1,4 +1,4 @@
-#from utils import *
+# from utils import *
 import numpy as np
 import pandas as pd
 from typing import *
@@ -59,23 +59,38 @@ def compute_c0(r0: float, beta: float, rho: float) -> float:
     return np.sqrt(beta / (2 * rho * np.sqrt(np.pi * r0**2)))
 
 
-def compute_beta(r0: float) -> float:
+def compute_beta(df: pd.DataFrame, olufsen: bool, id: int) -> float:
     """
     Function computes Eh from empirical relation Olufsen
 
     Args:
         r0: [cm] radius of artery
     """
-    #k1 = 2e7  # Ba
-    #k2 = -22.53  # cm^-1
-    #k3 = 8.65e5  # Ba
-    k1 = 2e6
-    k2 = -2253
-    k3 = 86.5e3
-    # change r0 from cm to m
-    r0 = r0 * 0.01
-    Eh = r0 * (k1 * np.exp(k2 * r0) + k3)
-    return 4 / 3 * np.sqrt(np.pi) * Eh
+    # k1 = 2e7  # Ba
+    # k2 = -22.53  # cm^-1
+    # k3 = 8.65e5  # Ba
+    #####################################################
+    # ZMIANA Z OLUFSEN NA LINEAR
+    # ##############################################
+    if olufsen:
+        k1 = 2e6
+        k2 = -2253
+        k3 = 86.5e3
+        # change r0 from cm to m
+        r0 = df[df.id == id].r0_out.iloc[0]
+        r0 = r0 * 0.01
+        Eh = r0 * (k1 * np.exp(k2 * r0) + k3)
+        return 4 / 3 * np.sqrt(np.pi) * Eh
+    else:
+        # change r0 from cm to m
+        # change modulus from Ba to Pa
+        # change h from cm to m
+        # r0 = df[df.id == id].r0_out.iloc[0] * 0.01
+        h = df[df.id == id].thickness.iloc[0] * 0.01
+        E = df[df.id == id].modulus.iloc[0] * 0.1  # modulus in script in BA
+        # r0 = r0 * 0.01
+        # Eh = 1.5e6 * r0
+        return 4 / 3 * np.sqrt(np.pi) * E * h
 
 
 def compute_R1(rho: float, c0: float, r0: float) -> float:
@@ -165,9 +180,10 @@ def unit_to_mmHg(p):
 
 def compute_windkessel(
     df: pd.DataFrame,
+    SV: float,
     P_sys: Optional[float] = 17331.91,
     P_dia: Optional[float] = 10132.50,
-    SV: Optional[float] = 0.00007,
+    #SV: Optional[float] = 70 * 1e-6,
     HR: Optional[float] = 1,
     rho: Optional[float] = 1050,
     tau: Optional[float] = 1.34,
@@ -205,49 +221,69 @@ def compute_windkessel(
 
     R1, R2, C = list(), list(), list()
     r0 = list()
+    r02 = list()
+    ##############################
     R_tot = compute_R_tot(P_sys, P_dia, SV, HR)
     C_tot = compute_C_tot(R_tot, tau)
+    ##################################
+    # R_tot = 1.34e8
+    # C_tot = 9.45e-9
     print("R_tot: ", R_tot)
     print("C_tot: ", C_tot)
+    with open("Windkessel.txt", "w") as f:
+        f.write(str(R_tot))
+        f.write("\n")
+        f.write(str(C_tot))
+        f.close()
+
 
     for id in df.id:
         if (df[df.id == id].outlet == 1).bool():
             r0.append(df[df.id == id].r0_out.iloc[0])
+        elif (df[df.id == id].outlet == 2).bool():
+            r02.append(df[df.id == id].r0_out.iloc[0])
     sigma_r0 = np.sum(np.array(r0))
+    sigma_r02 = np.sum(np.array(r02))
     for id in df.id:
         if (df[df.id == id].outlet == 1).bool():
             r_0 = df[df.id == id].r0_out.iloc[0]
-            beta = compute_beta(r_0)
+            beta = compute_beta(df, olufsen=True, id=id)
             c0 = compute_c0(r_0, beta, rho)
             R_1 = compute_R1(rho, c0, r_0)
             R_T = compute_R_t(R_tot, COf=0.15, sigma_r0=sigma_r0, r0=r_0)
             R_2 = compute_R_2(R_T, R_1)
             C_T = compute_C_t(C_tot, R_tot, R_T)
-            R1.append(R_1*1e-5)
-            R2.append(R_2*1e-5)
-            C.append(C_T*1e5)
+            R1.append(R_1 * 1e-5)
+            R2.append(R_2 * 1e-5)
+            C.append(C_T * 1e5)
         elif (df[df.id == id].outlet == 2).bool():
             r_0 = df[df.id == id].r0_out.iloc[0]
-            beta = compute_beta(r_0)
+            beta = compute_beta(df, olufsen=True, id=id)
             c0 = compute_c0(r_0, beta, rho)
             R_1 = compute_R1(rho, c0, r_0)
-            R_T = compute_R_t(R_tot, COf=0.05, sigma_r0=r_0, r0=r_0)
+            R_T = compute_R_t(R_tot, COf=0.1, sigma_r0=sigma_r02, r0=r_0)
             R_2 = compute_R_2(R_T, R_1)
             C_T = compute_C_t(C_tot, R_tot, R_T)
-            R1.append(R_1*1e-5)
-            R2.append(R_2*1e-5)
-            C.append(C_T*1e5)
+            R1.append(R_1 * 1e-5)
+            R2.append(R_2 * 1e-5)
+            C.append(C_T * 1e5)
+            #R1.append(13.37e2)
+            #R2.append(2.5462)
+            #C.append(2.58e-5)
         elif (df[df.id == id].outlet == 3).bool():
             r_0 = df[df.id == id].r0_out.iloc[0]
-            beta = compute_beta(r_0)
+            beta = compute_beta(df, olufsen=True, id=id)
             c0 = compute_c0(r_0, beta, rho)
             R_1 = compute_R1(rho, c0, r_0)
             R_T = compute_R_t(R_tot, COf=0.75, sigma_r0=r_0, r0=r_0)
             R_2 = compute_R_2(R_T, R_1)
             C_T = compute_C_t(C_tot, R_tot, R_T)
-            R1.append(R_1*1e-5)
-            R2.append(R_2*1e-5)
-            C.append(C_T*1e5)
+            R1.append(R_1 * 1e-5)
+            R2.append(R_2 * 1e-5)
+            C.append(C_T * 1e5)
+            #R1.append(1.77e2)
+            #R2.append(0.1622e4)
+            #C.append(38.7e-5)
         else:
             R1.append(0)
             R2.append(0)

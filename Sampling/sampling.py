@@ -118,9 +118,11 @@ def sample_system_params() -> Tuple[np.float, np.float, np.float, np.float]:
 def sample_Q_hat() -> np.float:
     """
     Function samples Q_hat from predefined uniform distribution
+    pfv [cm/s]?
 
     returns Q_hat
     """
+    np.random.seed()
     pfv = np.random.uniform(100, 140)
     A = np.pi * 1.2**2
 
@@ -144,7 +146,8 @@ def generate_flow_file(
     np.savetxt(filename, flow, delimiter=" ")
     return None
 
-def get_Q(Q_hat: float, t:np.array, tau: float) -> np.array:
+
+def get_Q(Q_hat: float, t: np.array, tau: float) -> np.array:
     """
     Function creates inlet flow file for 1D simulaion
 
@@ -156,7 +159,77 @@ def get_Q(Q_hat: float, t:np.array, tau: float) -> np.array:
     Q = np.where(t < tau, Q, 0)
     return Q
 
-def get_Q_SV(Q_hat: float, T: float, tau: float, dt: float) -> Tuple[np.array, np.float]:
+
+def get_Q_v2(Q_hat: float, tau: float, t: np.array) -> np.array:
+    """
+    Test for inflow from chuj wie co
+    """
+    import matplotlib.pyplot as plt
+
+    T = 1
+    Q = Q_hat * np.sin(np.pi * t / tau)
+    Q = np.where(t < tau, Q, 0)
+    Q_2 = Q_hat / (t * 12) * np.log(t / tau)
+    Q_2 = np.where(t > tau, Q_2, 0)
+    Q = Q + Q_2
+    # plt.plot(t, Q)
+    # plt.grid(True)
+    # plt.show()
+    return Q
+
+
+def get_Q_Zikic(Q_hat: float, t: np.array, t1: float, t2: float) -> np.array:
+    """
+    Function model inflow to ascending aorta following Zikic 2016
+    """
+    import matplotlib.pyplot as plt
+    import sys
+    theta1 = 93.0
+    omega1 = 14.95
+    theta2 = 7.67
+    omega2 = 29.9
+    phi = 0.6
+    Q_1 = 73.689
+    theta3 = 1.5
+    omega3 = 104.66
+    zeta = 0.3
+    alpha = 0.95
+    Q_0 = -24.5
+    #t = np.linspace(0,0.6, 100)
+
+    Q = theta1 * omega1**2 * t * np.exp(-omega1 * t)
+    Q = np.where(t < t1, Q, 0)
+    #Q += np.where(
+    #    (t1 < t) & (t <t2), -theta2 * omega2 * np.cos(omega2 * t + phi) + Q_1, 0
+    #)
+    Q += np.where(
+        (t1 < t) & (t <t2), 485  * np.log(t / t1), 0
+    )
+    Q += np.where(
+        t2 <= t,
+        (theta3*omega3*(1 - 1/alpha * np.exp(-zeta*omega3*t) * np.sin(alpha*omega3*t + phi))  + Q_0),
+        0,
+    )
+    plt.plot(t, Q)
+    plt.grid(True)
+    plt.show()
+    sys.exit()
+    return Q
+
+def get_Q_database() -> np.array:
+    """
+    test case for physio ascending aorta
+    """
+    Q = np.load('/home/wojciech/Doppler/Aorta_data/test_q.npy')
+    Q_last = Q[-1].repeat(999-955)
+    Q = np.concatenate((Q, Q_last))
+    print(Q.shape)
+    return Q
+
+
+def get_Q_SV(
+    Q_hat: float, T: float, tau: float, dt: float
+) -> Tuple[np.array, np.float]:
     """
     Function calculates the stroke volume by integrating the flow over time
 
@@ -164,8 +237,13 @@ def get_Q_SV(Q_hat: float, T: float, tau: float, dt: float) -> Tuple[np.array, n
     """
     t = np.arange(0, T, dt)
     Q = get_Q(Q_hat, t, tau)
+    #Q = get_Q_v2(Q_hat, tau, t)
+    #Q = get_Q_Zikic(Q_hat, t, 0.3, 0.35)
+    #Q = get_Q_database()
+    Q_z = np.where(t < tau, Q, 0)
     SV = integrate.trapz(Q, t)
     return (Q, SV)
+
 
 def sample_flow(
     T: Optional[float] = 1.0, dt: Optional[float] = 0.001, tau: Optional[float] = 0.35
@@ -175,12 +253,13 @@ def sample_flow(
     """
     t = np.arange(0, T, dt)
     Q_hat = sample_Q_hat()
+    # Q_hat = 485.0
     Q, SV = get_Q_SV(Q_hat, T, tau, dt)
     flow = np.column_stack((t, Q))
     return (flow, SV)
 
 
-def sample_vessel_params() -> Tuple[list, list, list]:
+def sample_vessel_params() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Function samples vessel lengths and inlet diameters from
     uniform distribution
@@ -189,7 +268,7 @@ def sample_vessel_params() -> Tuple[list, list, list]:
 
     only params from COW are sampled
     """
-    #np.random.seed(2137420)
+    # np.random.seed(2137420)
     np.random.seed()
     L = np.ones(33)
     r0_in = np.ones(33)
@@ -216,7 +295,7 @@ def sample_vessel_params() -> Tuple[list, list, list]:
         31,
         32,
     ]
-    # removed last 
+    # removed last
     L_range = [
         (12.6, 17.4),
         (12.4, 17.6),
@@ -242,8 +321,8 @@ def sample_vessel_params() -> Tuple[list, list, list]:
     r0_in_range = [
         (0.203, 0.25),
         (0.203, 0.25),
-        (0.1325*0.7, 0.2025*0.7),
-        (0.1325*0.7, 0.2025*0.7),
+        (0.1325 * 0.7, 0.2025 * 0.7),
+        (0.1325 * 0.7, 0.2025 * 0.7),
         (0.097, 0.174),
         (0.02, 0.15),
         (0.02, 0.15),
@@ -285,9 +364,10 @@ def sample_vessel_params() -> Tuple[list, list, list]:
     ]
     for i, idx in enumerate(ids):
         L[idx] = np.random.uniform(L_range[i][0], L_range[i][1])
-        r0_out[idx] = r0_in[idx] = np.random.uniform(r0_in_range[i][0], r0_in_range[i][1])
-        #r0_out[idx] = np.random.uniform(r0_out_range[i][0], r0_out_range[i][1])
-    
+        r0_out[idx] = r0_in[idx] = np.random.uniform(
+            r0_in_range[i][0], r0_in_range[i][1]
+        )
+        # r0_out[idx] = np.random.uniform(r0_out_range[i][0], r0_out_range[i][1])
 
     # hardcoding non COW vessels
     # ascending aorta
@@ -360,40 +440,355 @@ def sample_vessel_params() -> Tuple[list, list, list]:
     r0_in[15] = 0.403
     r0_out[15] = 0.403
 
-    #r int carotid 2 
+    # r int carotid 2
     r0_in[20] = r0_out[20] = r0_in[11]
 
-    #l int carotid 2
+    # l int carotid 2
     r0_in[17] = r0_out[17] = r0_in[10]
-
-
-
-    
-
 
     return (L, r0_in, r0_out)
 
-def params_Ala()-> Tuple[list, list, list]:
-    
-    df = pd.read_csv('/home/wojciech/Doppler/PINN_data_generation/Data/Alstruey2007.csv')
+
+def params_Ala() -> Tuple[list, list, list]:
+
+    df = pd.read_csv(
+        "/home/wojciech/Doppler/PINN_data_generation/Data/Alstruey2007.csv"
+    )
     L = df["L"].to_numpy() * 100
     r0_out = r0_in = df["Rp"].to_numpy() * 100
     return (L, r0_in, r0_out)
+
+
+def get_thickness(r0_in: np.ndarray) -> np.ndarray:
+    """
+    Function calculates thickness of vessel wall
+    """
+    h = 0.25 * r0_in
+    h[0] = 0.163
+    h[1] = 0.126
+    h[2] = 0.080
+    h[3] = 0.115
+    h[4] = 0.063
+    h[5] = 0.063
+    h[6] = 0.067
+    h[7] = 0.110
+    h[8] = 0.067
+    h[9] = 0.038
+    h[10] = 0.038
+    h[14] = 0.067
+    h[15] = 0.067
+    return h
+
 
 def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
     """
     Function samples COW and flow parameters from predefined uniform
     distributions and adds them to df
     """
-    L, r0_in, r0_out = sample_vessel_params()
-    #L, r0_in, r0_out = params_Ala()
+    #L, r0_in, r0_out = sample_vessel_params()
+    L, r0_in, r0_out = params_Ala()
+    path = '/home/wojciech/Doppler/PCSS_SIMULATION_MODEL/Data/MRI_COW_v2.csv'
+    #L, r0_in, r0_out = sample_normal(path)
+    L, r0_in, r0_out = add_gaussian_noise(L, r0_in, r0_out)
     df["L"] = L
     df["r0_in"] = r0_in
     df["r0_out"] = r0_out
     df["area_inlet"] = np.pi * r0_in**2
     df["area_outlet"] = np.pi * r0_out**2
+    df["thickness"] = get_thickness(r0_in)
 
     flow, SV = sample_flow()
 
-
     return (df, flow, SV)
+
+def get_covariance_matrix(df_path: str) -> np.ndarray:
+    """
+    Function calculate covariance matrix
+    for all variables in data frame collumns
+    """
+    df = pd.read_csv(df_path)
+    df = df/10
+    cov = df.cov().to_numpy()
+    return cov
+
+def get_mean(df_path: str) -> np.ndarray:
+    """
+    Function calculate mean vector
+    for all variables in data frame collumns
+    """
+    df = pd.read_csv(df_path)
+    df = df/10
+    mean = df.mean().to_numpy()
+    return mean
+
+def add_gaussian_noise(L:np.ndarray, r0_in: np.ndarray, r0_out: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Function adds gaussian noise to sampled params
+    """
+    np.random.seed()
+    ids = [
+        10,
+        11,
+        13,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+    ]
+    for i in ids:
+        if i in [22, 23]:
+            L[i] = L[i] + np.random.normal(0, 0.1*(L[i]-9.5)) - 9.5
+            r0_in[i]= r0_out[i] = r0_in[i] + np.random.normal(0, 0.1*r0_in[i])
+        elif i in [28, 29]:
+            L[i] = L[i] - 7.0 + np.random.normal(0, 0.1*(L[i]- 7.0))
+            r0_in[i]= r0_out[i] = r0_in[i] + np.random.normal(0, 0.1*r0_in[i])
+        else:
+            L[i] = L[i] + np.random.normal(0, 0.1*L[i])
+            r0_in[i]= r0_out[i] = r0_in[i] + np.random.normal(0, 0.1*r0_in[i])
+        #r0_out[i] = np.random.normal(0, 0.1*r0_out[i])
+    return (L, r0_in, r0_out)
+    
+
+def sample_conditional_uniform(mean: np.ndarray, sample: np.ndarray, L: np.ndarray, r0_in: np.ndarray, r0_out: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Function samples params from predefined distributions
+
+    given if sample is bigger than mean or not
+    """
+    sample_ids = [
+        0,
+        #6,
+        4,
+        #4,
+        2,
+        #8,
+        0,
+
+    ]
+    ids = [
+        10,
+        #11,
+        13,
+        #16,
+        28,
+        #29,
+        30
+    ]
+    # removed last
+    L_range = [
+        (12.6, 17.4),
+        #(12.4, 17.6),
+        (14.7, 14.9),
+        #(14.6, 14.8),
+        (3.4, 3.6),
+        #(3.4, 3.7),
+        (0.2, 0.6),
+    ]
+    r0_in_range = [
+        (0.203, 0.25),
+        #(0.203, 0.25),
+        (0.1325 * 0.7, 0.2025 * 0.7),
+        #(0.1325 * 0.7, 0.2025 * 0.7),
+        (0.0985, 0.1605),
+        #(0.0945, 0.1575),
+        (0.03, 0.105),
+    ]
+   
+    for i, idx in enumerate(ids):
+        L[idx] = np.random.uniform(L_range[i][0], L_range[i][1])
+        if sample[sample_ids[i]] > mean[sample_ids[i]]:
+            r0_out[idx] = r0_in[idx] = np.random.uniform(
+                np.mean(r0_in_range[i][0] + r0_in_range[i][1]), r0_in_range[i][1]
+            )
+        else:
+            r0_out[idx] = r0_in[idx] = np.random.uniform(
+                r0_in_range[i][0], np.mean(r0_in_range[i][0] + r0_in_range[i][1])
+            )
+    r0_in[28] = r0_out[28] = r0_in[24]
+    r0_in[29] = r0_out[29] = r0_in[25]
+    L[11] = L[10]
+    r0_in[11] = r0_out[11] = r0_in[10]
+    L[16] = L[13]
+    r0_in[16] = r0_out[16] = r0_in[13]
+    L[29] = L[28]
+    #r0_in[29] = r0_out[29] = r0_in[28]
+
+    return (L, r0_in, r0_out)
+
+
+def sample_normal(mesurements_path: str) -> np.ndarray:
+    """
+    Function samples normal distribution
+    from given mean and covariance matrix
+    """
+    cov = get_covariance_matrix(mesurements_path)
+    mean = get_mean(mesurements_path)
+    sample = np.random.multivariate_normal(mean, cov)
+    L = np.ones(33)
+    r0_in = np.ones(33)
+    r0_out = np.ones(33)
+    # encoding sampled values
+    #L_ICA_II
+    L[17] = sample[11]
+    r0_in[17] = sample[0]
+    r0_out[17] = sample[0]
+
+    #L_MCA
+    L[22] = sample[12]
+    r0_in[22] = sample[1]
+    r0_out[22] = sample[1]
+
+    #L_ACA_A1
+    L[24] = sample[13]
+    r0_in[24] = sample[2]
+    r0_out[24] = sample[2]
+
+    #L_PCA_P1
+    L[26] = sample[14]
+    r0_in[26] = sample[3]
+    r0_out[26] = sample[3]
+
+    # BA
+    L[21] = sample[15]
+    r0_in[21] = sample[4]
+    r0_out[21] = sample[4]
+
+    #L_PcoA
+    L[18] = sample[16]
+    r0_in[18] = sample[5]
+    r0_out[18] = sample[5]
+
+    #R_ICA_II
+    L[20] = sample[17]
+    r0_in[20] = sample[6]
+    r0_out[20] = sample[6]
+
+    #R_MCA
+    L[23] = sample[18]
+    r0_in[23] = sample[7]
+    r0_out[23] = sample[7]
+
+    #R_ACA_A1
+    L[25] = sample[19]
+    r0_in[25] = sample[8]
+    r0_out[25] = sample[8]
+
+    #R_PCA_P1
+    L[27] = sample[20]
+    r0_in[27] = sample[9]
+    r0_out[27] = sample[9]
+
+    #R_PcoA
+    L[19] = sample[21]
+    r0_in[19] = sample[10]
+    r0_out[19] = sample[10]
+
+    # sampling pcas and rs of pcas
+    r0_in[31] = r0_out[31] = sample[3]
+    r0_in[32] = r0_out[32] = sample[9]
+
+    # sampling lengths of pcas
+    L[31] = np.random.uniform(2.0, 2.8)
+    L[32] = np.random.uniform(2.0, 2.8)
+    
+    
+
+
+    # hardcoding non COW vessels
+    # ascending aorta
+    L[0] = 4.0
+    r0_in[0] = 1.2
+    r0_out[0] = 1.2
+
+    # aortic arch I
+    L[1] = 2.0
+    r0_in[1] = 1.12
+    r0_out[1] = 1.12
+
+    # brachiocephalic
+    L[2] = 3.4
+    r0_in[2] = 0.62
+    r0_out[2] = 0.62
+
+    # ao arch II
+    L[3] = 3.9
+    r0_in[3] = 1.07
+    r0_out[3] = 1.07
+
+    # left common carotid
+    L[4] = 20.8
+    r0_in[4] = 0.250
+    r0_out[4] = 0.250
+
+    # R common carotid
+    L[5] = 17.7
+    r0_in[5] = 0.250
+    r0_out[5] = 0.250
+
+    # R subclaian
+    L[6] = 3.4
+    r0_in[6] = 0.423
+    r0_out[6] = 0.423
+
+    # Thoracic aorta
+    L[7] = 15.6
+    r0_in[7] = 0.999
+    r0_out[7] = 0.999
+
+    # L subclavian
+    L[8] = 3.4
+    r0_in[8] = 0.423
+    r0_out[8] = 0.423
+
+    # L ext carotid
+    L[9] = 17.7
+    r0_in[9] = 0.150
+    r0_out[9] = 0.150
+
+    # ICA???? I
+
+    # R ext carotid
+    L[12] = 17.7
+    r0_in[12] = 0.150
+    r0_out[12] = 0.150
+
+    # R vertebral
+    # TODO
+
+    # R Brachial
+    L[14] = 42.2
+    r0_in[14] = 0.403
+    r0_out[14] = 0.403
+
+    # L brachial
+    L[15] = 42.2
+    r0_in[15] = 0.403
+    r0_out[15] = 0.403
+
+    # r int carotid 2
+    #r0_in[20] = r0_out[20] = r0_in[11]
+
+    # l int carotid 2
+    #r0_in[17] = r0_out[17] = r0_in[10]
+
+    L, r0_in, r0_out = sample_conditional_uniform(mean, sample, L, r0_in, r0_out)
+
+    return (L, r0_in, r0_out)
+
+
+
+
+    

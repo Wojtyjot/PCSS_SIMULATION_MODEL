@@ -13,9 +13,13 @@ import time
 # main function for creating dataset
 
 
-
-
-def main(solver_path: str, output_path: str, num_samples: int, templates: str, NUM_WORKERS: int) -> None:
+def main(
+    solver_path: str,
+    output_path: str,
+    num_samples: int,
+    templates: str,
+    NUM_WORKERS: int,
+) -> None:
     """
     Main function for creating dataset, running simulation,
     sampling parameters and saving results
@@ -28,19 +32,20 @@ def main(solver_path: str, output_path: str, num_samples: int, templates: str, N
             os.makedirs(output_path / f"RESULTS_{i}")
 
         os.chdir(output_path / f"RESULTS_{i}")
-        
+
         # create df and df_joints from template
-        df = pd.read_csv(templates /f"TEMPLATE_1.csv")
-        df_joints = pd.read_csv(templates /f"TEMPLATE_1_TOPO.csv")
+        df = pd.read_csv(templates / f"TEMPLATE_1.csv")
+        df_joints = pd.read_csv(templates / f"TEMPLATE_1_TOPO.csv")
 
         # sample parameters
         df, flow = sample(df)
         df = compute_windkessel(df)
-        create_script(df, df_joints, f"SCRIPT_{i}", "TEST", flow) # zmienic potem
+        create_script(df, df_joints, f"SCRIPT_{i}", "TEST", flow)  # zmienic potem
         os.system(f"./{solver_path} SCRIPT_{i}.txt")
-        
-        
+
+
 from multiprocessing import Pool
+
 
 def process_sample(sample_index, solver_path, output_path, templates):
     output_folder = output_path / f"RESULTS_{sample_index}"
@@ -58,20 +63,36 @@ def process_sample(sample_index, solver_path, output_path, templates):
     with open("SV.txt", "w") as f:
         f.write(str(SV))
         f.close()
-    df = compute_windkessel(df, SV=SV*1e-6)
-    create_script(df, df_joints, f"SCRIPT_{sample_index}", f"TEST_{sample_index}", flow)
+    df = compute_windkessel(df, SV=SV * 1e-6)
+    create_script(
+        df,
+        df_joints,
+        f"SCRIPT_{sample_index}",
+        f"TEST_{sample_index}",
+        flow,
+        olufsen=True,
+    )
     df.to_csv(f"PARAMS_{sample_index}.csv")
     os.system(f"{solver_path} SCRIPT_{sample_index}.txt")
 
-def main_2(solver_path: str, output_path: str, num_samples: int, templates: str, NUM_WORKERS: int) -> None:
+
+def main_2(
+    solver_path: str,
+    output_path: str,
+    num_samples: int,
+    templates: str,
+    NUM_WORKERS: int,
+) -> None:
     output_path = Path(output_path)
     templates = Path(templates)
     st = time.time()
     with Pool(NUM_WORKERS) as pool:
-        pool.starmap(process_sample, [(i, solver_path, output_path, templates) for i in range(num_samples)])
+        pool.starmap(
+            process_sample,
+            [(i, solver_path, output_path, templates) for i in range(num_samples)],
+        )
     print(f"Total time: {time.time() - st}")
-        
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_2(sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4], int(sys.argv[5]))
