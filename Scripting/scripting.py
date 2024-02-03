@@ -375,7 +375,7 @@ def create_script(
             names=df.name,
             # root_node=df.root_node,
             L=df.L,
-            Nx=50,
+            Nx=400,
             start_nodes=df.sn,
             end_nodes=df.tn,
             area_inlet=df.area_inlet,

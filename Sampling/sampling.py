@@ -2,6 +2,8 @@ from scipy import integrate
 import pandas as pd
 import numpy as np
 from typing import *
+import os
+import time
 
 # sampling all params and adding them to da
 from pathlib import Path
@@ -122,7 +124,7 @@ def sample_Q_hat() -> np.float:
 
     returns Q_hat
     """
-    np.random.seed()
+    np.random.seed((os.getpid() * int(time.time())) % 123456789)
     pfv = np.random.uniform(100, 140)
     A = np.pi * 1.2**2
 
@@ -184,6 +186,7 @@ def get_Q_Zikic(Q_hat: float, t: np.array, t1: float, t2: float) -> np.array:
     """
     import matplotlib.pyplot as plt
     import sys
+
     theta1 = 93.0
     omega1 = 14.95
     theta2 = 7.67
@@ -195,19 +198,28 @@ def get_Q_Zikic(Q_hat: float, t: np.array, t1: float, t2: float) -> np.array:
     zeta = 0.3
     alpha = 0.95
     Q_0 = -24.5
-    #t = np.linspace(0,0.6, 100)
+    # t = np.linspace(0,0.6, 100)
 
     Q = theta1 * omega1**2 * t * np.exp(-omega1 * t)
     Q = np.where(t < t1, Q, 0)
-    #Q += np.where(
+    # Q += np.where(
     #    (t1 < t) & (t <t2), -theta2 * omega2 * np.cos(omega2 * t + phi) + Q_1, 0
-    #)
-    Q += np.where(
-        (t1 < t) & (t <t2), 485  * np.log(t / t1), 0
-    )
+    # )
+    Q += np.where((t1 < t) & (t < t2), 485 * np.log(t / t1), 0)
     Q += np.where(
         t2 <= t,
-        (theta3*omega3*(1 - 1/alpha * np.exp(-zeta*omega3*t) * np.sin(alpha*omega3*t + phi))  + Q_0),
+        (
+            theta3
+            * omega3
+            * (
+                1
+                - 1
+                / alpha
+                * np.exp(-zeta * omega3 * t)
+                * np.sin(alpha * omega3 * t + phi)
+            )
+            + Q_0
+        ),
         0,
     )
     plt.plot(t, Q)
@@ -216,12 +228,13 @@ def get_Q_Zikic(Q_hat: float, t: np.array, t1: float, t2: float) -> np.array:
     sys.exit()
     return Q
 
+
 def get_Q_database() -> np.array:
     """
     test case for physio ascending aorta
     """
-    Q = np.load('/home/wojciech/Doppler/Aorta_data/test_q.npy')
-    Q_last = Q[-1].repeat(999-955)
+    Q = np.load("/home/wojciech/Doppler/Aorta_data/test_q.npy")
+    Q_last = Q[-1].repeat(999 - 955)
     Q = np.concatenate((Q, Q_last))
     print(Q.shape)
     return Q
@@ -237,9 +250,9 @@ def get_Q_SV(
     """
     t = np.arange(0, T, dt)
     Q = get_Q(Q_hat, t, tau)
-    #Q = get_Q_v2(Q_hat, tau, t)
-    #Q = get_Q_Zikic(Q_hat, t, 0.3, 0.35)
-    #Q = get_Q_database()
+    # Q = get_Q_v2(Q_hat, tau, t)
+    # Q = get_Q_Zikic(Q_hat, t, 0.3, 0.35)
+    # Q = get_Q_database()
     Q_z = np.where(t < tau, Q, 0)
     SV = integrate.trapz(Q, t)
     return (Q, SV)
@@ -452,7 +465,8 @@ def sample_vessel_params() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
 def params_Ala() -> Tuple[list, list, list]:
 
     df = pd.read_csv(
-        "/home/wojciech/Doppler/PINN_data_generation/Data/Alstruey2007.csv"
+        #"/mnt/storage_4/home/wojciech.kaczmarek/pl0110-01/project_data/PCSS_SIMULATION_MODEL/Data/Alstruey2007.csv"
+        "/home/wojciech/Doppler/PCSS_SIMULATION_MODEL/Data/Alstruey2007.csv"
     )
     L = df["L"].to_numpy() * 100
     r0_out = r0_in = df["Rp"].to_numpy() * 100
@@ -485,10 +499,10 @@ def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
     Function samples COW and flow parameters from predefined uniform
     distributions and adds them to df
     """
-    #L, r0_in, r0_out = sample_vessel_params()
+    # L, r0_in, r0_out = sample_vessel_params()
     L, r0_in, r0_out = params_Ala()
-    path = '/home/wojciech/Doppler/PCSS_SIMULATION_MODEL/Data/MRI_COW_v2.csv'
-    #L, r0_in, r0_out = sample_normal(path)
+    path = "/home/wojciech/Doppler/PCSS_SIMULATION_MODEL/Data/MRI_COW_v2.csv"
+    # L, r0_in, r0_out = sample_normal(path)
     L, r0_in, r0_out = add_gaussian_noise(L, r0_in, r0_out)
     df["L"] = L
     df["r0_in"] = r0_in
@@ -501,15 +515,17 @@ def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
 
     return (df, flow, SV)
 
+
 def get_covariance_matrix(df_path: str) -> np.ndarray:
     """
     Function calculate covariance matrix
     for all variables in data frame collumns
     """
     df = pd.read_csv(df_path)
-    df = df/10
+    df = df / 10
     cov = df.cov().to_numpy()
     return cov
+
 
 def get_mean(df_path: str) -> np.ndarray:
     """
@@ -517,15 +533,18 @@ def get_mean(df_path: str) -> np.ndarray:
     for all variables in data frame collumns
     """
     df = pd.read_csv(df_path)
-    df = df/10
+    df = df / 10
     mean = df.mean().to_numpy()
     return mean
 
-def add_gaussian_noise(L:np.ndarray, r0_in: np.ndarray, r0_out: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+def add_gaussian_noise(
+    L: np.ndarray, r0_in: np.ndarray, r0_out: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Function adds gaussian noise to sampled params
     """
-    np.random.seed()
+    np.random.seed((os.getpid() * int(time.time())) % 123456789)
     ids = [
         10,
         11,
@@ -550,19 +569,25 @@ def add_gaussian_noise(L:np.ndarray, r0_in: np.ndarray, r0_out: np.ndarray) -> T
     ]
     for i in ids:
         if i in [22, 23]:
-            L[i] = L[i] + np.random.normal(0, 0.1*(L[i]-9.5)) - 9.5
-            r0_in[i]= r0_out[i] = r0_in[i] + np.random.normal(0, 0.1*r0_in[i])
+            L[i] = L[i] + np.random.normal(0, 0.05 * (L[i] - 9.5)) - 9.5
+            r0_in[i] = r0_out[i] = r0_in[i] + np.random.normal(0, 0.05 * r0_in[i])
         elif i in [28, 29]:
-            L[i] = L[i] - 7.0 + np.random.normal(0, 0.1*(L[i]- 7.0))
-            r0_in[i]= r0_out[i] = r0_in[i] + np.random.normal(0, 0.1*r0_in[i])
+            L[i] = L[i] - 7.0 + np.random.normal(0, 0.05 * (L[i] - 7.0))
+            r0_in[i] = r0_out[i] = r0_in[i] + np.random.normal(0, 0.05 * r0_in[i])
         else:
-            L[i] = L[i] + np.random.normal(0, 0.1*L[i])
-            r0_in[i]= r0_out[i] = r0_in[i] + np.random.normal(0, 0.1*r0_in[i])
-        #r0_out[i] = np.random.normal(0, 0.1*r0_out[i])
+            L[i] = L[i] + np.random.normal(0, 0.05 * L[i])
+            r0_in[i] = r0_out[i] = r0_in[i] + np.random.normal(0, 0.05 * r0_in[i])
+        # r0_out[i] = np.random.normal(0, 0.1*r0_out[i])
     return (L, r0_in, r0_out)
-    
 
-def sample_conditional_uniform(mean: np.ndarray, sample: np.ndarray, L: np.ndarray, r0_in: np.ndarray, r0_out: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+def sample_conditional_uniform(
+    mean: np.ndarray,
+    sample: np.ndarray,
+    L: np.ndarray,
+    r0_in: np.ndarray,
+    r0_out: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Function samples params from predefined distributions
 
@@ -570,43 +595,42 @@ def sample_conditional_uniform(mean: np.ndarray, sample: np.ndarray, L: np.ndarr
     """
     sample_ids = [
         0,
-        #6,
+        # 6,
         4,
-        #4,
+        # 4,
         2,
-        #8,
+        # 8,
         0,
-
     ]
     ids = [
         10,
-        #11,
+        # 11,
         13,
-        #16,
+        # 16,
         28,
-        #29,
-        30
+        # 29,
+        30,
     ]
     # removed last
     L_range = [
         (12.6, 17.4),
-        #(12.4, 17.6),
+        # (12.4, 17.6),
         (14.7, 14.9),
-        #(14.6, 14.8),
+        # (14.6, 14.8),
         (3.4, 3.6),
-        #(3.4, 3.7),
+        # (3.4, 3.7),
         (0.2, 0.6),
     ]
     r0_in_range = [
         (0.203, 0.25),
-        #(0.203, 0.25),
+        # (0.203, 0.25),
         (0.1325 * 0.7, 0.2025 * 0.7),
-        #(0.1325 * 0.7, 0.2025 * 0.7),
+        # (0.1325 * 0.7, 0.2025 * 0.7),
         (0.0985, 0.1605),
-        #(0.0945, 0.1575),
+        # (0.0945, 0.1575),
         (0.03, 0.105),
     ]
-   
+
     for i, idx in enumerate(ids):
         L[idx] = np.random.uniform(L_range[i][0], L_range[i][1])
         if sample[sample_ids[i]] > mean[sample_ids[i]]:
@@ -624,7 +648,7 @@ def sample_conditional_uniform(mean: np.ndarray, sample: np.ndarray, L: np.ndarr
     L[16] = L[13]
     r0_in[16] = r0_out[16] = r0_in[13]
     L[29] = L[28]
-    #r0_in[29] = r0_out[29] = r0_in[28]
+    # r0_in[29] = r0_out[29] = r0_in[28]
 
     return (L, r0_in, r0_out)
 
@@ -641,22 +665,22 @@ def sample_normal(mesurements_path: str) -> np.ndarray:
     r0_in = np.ones(33)
     r0_out = np.ones(33)
     # encoding sampled values
-    #L_ICA_II
+    # L_ICA_II
     L[17] = sample[11]
     r0_in[17] = sample[0]
     r0_out[17] = sample[0]
 
-    #L_MCA
+    # L_MCA
     L[22] = sample[12]
     r0_in[22] = sample[1]
     r0_out[22] = sample[1]
 
-    #L_ACA_A1
+    # L_ACA_A1
     L[24] = sample[13]
     r0_in[24] = sample[2]
     r0_out[24] = sample[2]
 
-    #L_PCA_P1
+    # L_PCA_P1
     L[26] = sample[14]
     r0_in[26] = sample[3]
     r0_out[26] = sample[3]
@@ -666,32 +690,32 @@ def sample_normal(mesurements_path: str) -> np.ndarray:
     r0_in[21] = sample[4]
     r0_out[21] = sample[4]
 
-    #L_PcoA
+    # L_PcoA
     L[18] = sample[16]
     r0_in[18] = sample[5]
     r0_out[18] = sample[5]
 
-    #R_ICA_II
+    # R_ICA_II
     L[20] = sample[17]
     r0_in[20] = sample[6]
     r0_out[20] = sample[6]
 
-    #R_MCA
+    # R_MCA
     L[23] = sample[18]
     r0_in[23] = sample[7]
     r0_out[23] = sample[7]
 
-    #R_ACA_A1
+    # R_ACA_A1
     L[25] = sample[19]
     r0_in[25] = sample[8]
     r0_out[25] = sample[8]
 
-    #R_PCA_P1
+    # R_PCA_P1
     L[27] = sample[20]
     r0_in[27] = sample[9]
     r0_out[27] = sample[9]
 
-    #R_PcoA
+    # R_PcoA
     L[19] = sample[21]
     r0_in[19] = sample[10]
     r0_out[19] = sample[10]
@@ -703,9 +727,6 @@ def sample_normal(mesurements_path: str) -> np.ndarray:
     # sampling lengths of pcas
     L[31] = np.random.uniform(2.0, 2.8)
     L[32] = np.random.uniform(2.0, 2.8)
-    
-    
-
 
     # hardcoding non COW vessels
     # ascending aorta
@@ -779,16 +800,11 @@ def sample_normal(mesurements_path: str) -> np.ndarray:
     r0_out[15] = 0.403
 
     # r int carotid 2
-    #r0_in[20] = r0_out[20] = r0_in[11]
+    # r0_in[20] = r0_out[20] = r0_in[11]
 
     # l int carotid 2
-    #r0_in[17] = r0_out[17] = r0_in[10]
+    # r0_in[17] = r0_out[17] = r0_in[10]
 
     L, r0_in, r0_out = sample_conditional_uniform(mean, sample, L, r0_in, r0_out)
 
     return (L, r0_in, r0_out)
-
-
-
-
-    

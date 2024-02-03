@@ -183,7 +183,7 @@ def compute_windkessel(
     SV: float,
     P_sys: Optional[float] = 17331.91,
     P_dia: Optional[float] = 10132.50,
-    #SV: Optional[float] = 70 * 1e-6,
+    # SV: Optional[float] = 70 * 1e-6,
     HR: Optional[float] = 1,
     rho: Optional[float] = 1050,
     tau: Optional[float] = 1.34,
@@ -236,7 +236,6 @@ def compute_windkessel(
         f.write(str(C_tot))
         f.close()
 
-
     for id in df.id:
         if (df[df.id == id].outlet == 1).bool():
             r0.append(df[df.id == id].r0_out.iloc[0])
@@ -267,9 +266,9 @@ def compute_windkessel(
             R1.append(R_1 * 1e-5)
             R2.append(R_2 * 1e-5)
             C.append(C_T * 1e5)
-            #R1.append(13.37e2)
-            #R2.append(2.5462)
-            #C.append(2.58e-5)
+            # R1.append(13.37e2)
+            # R2.append(2.5462)
+            # C.append(2.58e-5)
         elif (df[df.id == id].outlet == 3).bool():
             r_0 = df[df.id == id].r0_out.iloc[0]
             beta = compute_beta(df, olufsen=True, id=id)
@@ -281,9 +280,9 @@ def compute_windkessel(
             R1.append(R_1 * 1e-5)
             R2.append(R_2 * 1e-5)
             C.append(C_T * 1e5)
-            #R1.append(1.77e2)
-            #R2.append(0.1622e4)
-            #C.append(38.7e-5)
+            # R1.append(1.77e2)
+            # R2.append(0.1622e4)
+            # C.append(38.7e-5)
         else:
             R1.append(0)
             R2.append(0)

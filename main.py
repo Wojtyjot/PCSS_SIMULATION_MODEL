@@ -68,12 +68,16 @@ def process_sample(sample_index, solver_path, output_path, templates):
         df,
         df_joints,
         f"SCRIPT_{sample_index}",
-        f"TEST_{sample_index}",
+        f"RUN_{sample_index}",
         flow,
         olufsen=True,
     )
     df.to_csv(f"PARAMS_{sample_index}.csv")
     os.system(f"{solver_path} SCRIPT_{sample_index}.txt")
+    with open("JOB_DONE.txt", "w") as f:
+        f.write("DONE")
+        f.close()
+
 
 
 def main_2(

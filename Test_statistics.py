@@ -28,7 +28,7 @@ def compute_MFV(df_velocity: np.ndarray) -> float:
     Function to compute mean flow velocity
     (max + (min *2))/3
     """
-    
+
     return np.min(df_velocity) + (np.max(df_velocity) - np.min(df_velocity)) / 3
     return (np.max(df_velocity) + (np.min(df_velocity) * 2)) / 3
 
@@ -244,9 +244,8 @@ def main(result_folder: str, arteries: List[str]) -> None:
                 df_area = df_area[:, -100:]
                 df_pressure = df_pressure[:, -100:]
                 df_velocity = df_velocity[:, -100:]
-                
+
                 params_df = pd.read_csv(params)
-                
 
                 result_dict[f"{artery}_minV"].append(np.min(df_velocity))
                 result_dict[f"{artery}_maxV"].append(np.max(df_velocity))
@@ -299,7 +298,6 @@ def main(result_folder: str, arteries: List[str]) -> None:
         new_results[f"{artery}_L_std"] = np.std(result_dict[f"{artery}_L"])
         new_results[f"{artery}_r0_in_mean"] = np.mean(result_dict[f"{artery}_r0_in"])
         new_results[f"{artery}_r0_in_std"] = np.std(result_dict[f"{artery}_r0_in"])
-        
 
     # create table from rsults rows = names of artries, cols = mean and std of MAP, MFV and area
     df = pd.DataFrame.from_dict(new_results, orient="index")
@@ -326,8 +324,6 @@ if __name__ == "__main__":
         "R_PcoA",
         "AcoA",
         "Ascending_aorta",
-
-
     ]
     result_folder = "/home/wojciech/Doppler/PCSS_SIMULATION_MODEL/Test"
     main(result_folder, arteries)
