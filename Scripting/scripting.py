@@ -340,6 +340,7 @@ def create_script(
     model: str,
     flow: np.ndarray,
     olufsen: bool = False,
+    max_steps: int = 10000,
 ) -> None:
     """
     Function creates script for simvascular onedsolver from pandas dataframe
@@ -375,7 +376,7 @@ def create_script(
             names=df.name,
             # root_node=df.root_node,
             L=df.L,
-            Nx=400,
+            Nx=50,
             start_nodes=df.sn,
             end_nodes=df.tn,
             area_inlet=df.area_inlet,
@@ -458,7 +459,7 @@ def create_script(
         script_name=script_name,
         timestep=0.001,
         savefreq=10,
-        maxsteps=10000,
+        maxsteps=max_steps, # zmienic na 10 cykli 
         nquad=4,
         dname="PULS_FLOW",
         bctype="FLOW",

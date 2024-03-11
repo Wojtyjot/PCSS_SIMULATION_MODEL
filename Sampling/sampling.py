@@ -116,6 +116,16 @@ def sample_system_params() -> Tuple[np.float, np.float, np.float, np.float]:
 
     return (HR, SV, P_sys, P_dia)
 
+def sample_pressure() -> Tuple[np.float, np.float]:
+    """
+    Function samples pressure for model
+
+    uniform  [115 - 135]/ [74 - 86]
+    """
+    P_sys = np.random.uniform(115, 135)
+    P_dia = np.random.uniform(74, 86)
+    return (P_sys, P_dia)
+
 
 def sample_Q_hat() -> np.float:
     """
@@ -127,7 +137,6 @@ def sample_Q_hat() -> np.float:
     np.random.seed((os.getpid() * int(time.time())) % 123456789)
     pfv = np.random.uniform(100, 140)
     A = np.pi * 1.2**2
-
     return pfv * A
 
 
@@ -270,6 +279,13 @@ def sample_flow(
     Q, SV = get_Q_SV(Q_hat, T, tau, dt)
     flow = np.column_stack((t, Q))
     return (flow, SV)
+
+def sample_HR() -> np.float:
+    """
+    Function samples heart rate from predefined uniform distribution
+    """
+    HR = np.random.uniform(60, 80)
+    return HR
 
 
 def sample_vessel_params() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -499,11 +515,13 @@ def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
     Function samples COW and flow parameters from predefined uniform
     distributions and adds them to df
     """
-    # L, r0_in, r0_out = sample_vessel_params()
-    L, r0_in, r0_out = params_Ala()
+    L, r0_in, r0_out = sample_vessel_params()
+    #L, r0_in, r0_out = params_Ala()
     path = "/home/wojciech/Doppler/PCSS_SIMULATION_MODEL/Data/MRI_COW_v2.csv"
     # L, r0_in, r0_out = sample_normal(path)
-    L, r0_in, r0_out = add_gaussian_noise(L, r0_in, r0_out)
+    #L, r0_in, r0_out = add_gaussian_noise(L, r0_in, r0_out)
+    HR = sample_HR()
+    p_sys, p_dia = sample_pressure()
     df["L"] = L
     df["r0_in"] = r0_in
     df["r0_out"] = r0_out
@@ -511,9 +529,9 @@ def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
     df["area_outlet"] = np.pi * r0_out**2
     df["thickness"] = get_thickness(r0_in)
 
-    flow, SV = sample_flow()
+    flow, SV = sample_flow(T = 60/HR)
 
-    return (df, flow, SV)
+    return (df, flow, SV, p_sys, p_dia, HR)
 
 
 def get_covariance_matrix(df_path: str) -> np.ndarray:

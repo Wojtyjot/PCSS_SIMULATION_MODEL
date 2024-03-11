@@ -177,6 +177,12 @@ def unit_to_mmHg(p):
     """
     return 76 / 101325 * p
 
+def mmhg_to_Pa(p):
+    """
+    function converts pressure from mmhg to Pa
+    """
+    return p * 133.3223684
+
 
 def compute_windkessel(
     df: pd.DataFrame,
