@@ -1,5 +1,5 @@
 import numpy as np
-import torch
+#import torch
 import os
 import pandas as pd
 import sys
@@ -81,6 +81,25 @@ def encode_artery(artery: str) -> np.ndarray:
     out[index] = 1
     return out
 
+def decode_artery(artery: np.ndarray) -> str:
+    """
+    Function decodes artery one-hot vector to artery name
+    """
+    arteries = [
+        "VA",
+        "ICA_1",
+        "BA",
+        "MCA",
+        "ACA_A1",
+        "ACA_A2",
+        "PCA_P1",
+        "PCA_P2",
+        "PCOA",
+        "ACOA",
+        "ICA_2",
+    ]
+    index = np.argmax(artery)
+    return arteries[index]
 
 def get_name_for_encoding(artery: str) -> str:
     """
@@ -226,6 +245,7 @@ def main():
     """
     data_dir = Path("/mnt/storage_4/home/wojciech.kaczmarek/pl0110-01/project_data")
 
+    dataset_name = "GNOT_dataset_no_end_BC"
     arteries = [
         "L_int_carotid_I",
         "R_int_carotid_I",
@@ -257,7 +277,7 @@ def main():
             if results_dir.exists():
                 if len(list(results_dir.glob("*.dat"))) > 0:
                     params_df = pd.read_csv(results_dir / f"PARAMS_{i}.csv")
-                    SV = np.loadtxt(results_dir / f"SV.txt")
+                    SV = np.loadtxt(results_dir / f"SV.txt").reshape(1)
 
                     # Load parameters of given Circle of Willis
                     # Remember to load COW ONLY
@@ -292,9 +312,12 @@ def main():
 
                         p0, u0, a0 = get_IC(pressure, area, velocity, L)
 
-                        in_funcs = tuple(in_BC, p0, u0, a0)
+                        in_funcs = (in_BC, p0, u0, a0)
 
                         dataset.append([X, Y, theta, in_funcs])
 
 
-                        #
+    np.save(data_dir / f"{dataset_name}.npy", dataset)
+
+if __name__ == "__main__":
+    main()

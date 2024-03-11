@@ -58,12 +58,22 @@ def process_sample(sample_index, solver_path, output_path, templates):
     df = pd.read_csv(templates / f"TEMPLATE_1.csv")
     df_joints = pd.read_csv(templates / f"TEMPLATE_1_TOPO.csv")
 
-    df, flow, SV = sample(df)
+    df, flow, SV, p_sys, p_dia, HR = sample(df) 
+    HR = int(HR)
     # create txt file with Sv and save
-    with open("SV.txt", "w") as f:
+    with open("PARAM.txt", "w") as f:
         f.write(str(SV))
+        f.write("\n")
+        f.write(str(p_sys))
+        f.write("\n")
+        f.write(str(p_dia))
+        f.write("\n")
+        f.write(str(HR))
         f.close()
-    df = compute_windkessel(df, SV=SV * 1e-6)
+    #pressure to pa and compute windkessel
+    p_sys = p_sys * 133.3223684
+    p_dia = p_dia * 133.3223684
+    df = compute_windkessel(df, SV=SV * 1e-6, P_sys=p_sys, P_dia=p_dia, HR = 60/HR)
     create_script(
         df,
         df_joints,
@@ -71,6 +81,7 @@ def process_sample(sample_index, solver_path, output_path, templates):
         f"RUN_{sample_index}",
         flow,
         olufsen=True,
+        max_steps = int(60/HR * 1000)
     )
     df.to_csv(f"PARAMS_{sample_index}.csv")
     os.system(f"{solver_path} SCRIPT_{sample_index}.txt")
