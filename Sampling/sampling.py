@@ -96,7 +96,7 @@ def sample_segment_params(df: pd.DataFrame, template: str) -> pd.DataFrame:
     return df
 
 
-def sample_system_params() -> Tuple[np.float, np.float, np.float, np.float]:
+def sample_system_params() -> Tuple[float, float, float, float]:
     """
     Function samples system parameters from predefined uniform distribution
 
@@ -116,7 +116,7 @@ def sample_system_params() -> Tuple[np.float, np.float, np.float, np.float]:
 
     return (HR, SV, P_sys, P_dia)
 
-def sample_pressure() -> Tuple[np.float, np.float]:
+def sample_pressure() -> Tuple[float, float]:
     """
     Function samples pressure for model
 
@@ -127,7 +127,7 @@ def sample_pressure() -> Tuple[np.float, np.float]:
     return (P_sys, P_dia)
 
 
-def sample_Q_hat() -> np.float:
+def sample_Q_hat() -> float:
     """
     Function samples Q_hat from predefined uniform distribution
     pfv [cm/s]?
@@ -251,7 +251,7 @@ def get_Q_database() -> np.array:
 
 def get_Q_SV(
     Q_hat: float, T: float, tau: float, dt: float
-) -> Tuple[np.array, np.float]:
+) -> Tuple[np.array, float]:
     """
     Function calculates the stroke volume by integrating the flow over time
 
@@ -269,7 +269,7 @@ def get_Q_SV(
 
 def sample_flow(
     T: Optional[float] = 1.0, dt: Optional[float] = 0.001, tau: Optional[float] = 0.35
-) -> Tuple[np.ndarray, np.float]:
+) -> Tuple[np.ndarray, float]:
     """
     Function samples flow from hardcoded distribution and SV[ml]
     """
@@ -280,7 +280,7 @@ def sample_flow(
     flow = np.column_stack((t, Q))
     return (flow, SV, dt)
 
-def sample_HR() -> np.float:
+def sample_HR() -> float:
     """
     Function samples heart rate from predefined uniform distribution
     """
@@ -510,7 +510,7 @@ def get_thickness(r0_in: np.ndarray) -> np.ndarray:
     return h
 
 
-def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
+def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, float]:
     """
     Function samples COW and flow parameters from predefined uniform
     distributions and adds them to df
