@@ -341,6 +341,7 @@ def create_script(
     flow: np.ndarray,
     olufsen: bool = False,
     max_steps: int = 10000,
+    dt: float = 0.001,
 ) -> None:
     """
     Function creates script for simvascular onedsolver from pandas dataframe
@@ -457,7 +458,7 @@ def create_script(
     add_output(script_name=script_name, format="TEXT")
     add_solver_options(
         script_name=script_name,
-        timestep=0.001,
+        timestep=dt,
         savefreq=10,
         maxsteps=max_steps, # zmienic na 10 cykli 
         nquad=4,

@@ -257,7 +257,7 @@ def get_Q_SV(
 
     SV = ∫Q(t) dt from 0 to T
     """
-    t = np.arange(0, T, dt)
+    t = np.linspace(0,T,1000)
     Q = get_Q(Q_hat, t, tau)
     # Q = get_Q_v2(Q_hat, tau, t)
     # Q = get_Q_Zikic(Q_hat, t, 0.3, 0.35)
@@ -273,12 +273,12 @@ def sample_flow(
     """
     Function samples flow from hardcoded distribution and SV[ml]
     """
-    t = np.arange(0, T, dt)
+    t, dt = np.linspace(0, T, 1000, retstep=True)
     Q_hat = sample_Q_hat()
     # Q_hat = 485.0
     Q, SV = get_Q_SV(Q_hat, T, tau, dt)
     flow = np.column_stack((t, Q))
-    return (flow, SV)
+    return (flow, SV, dt)
 
 def sample_HR() -> np.float:
     """
@@ -529,9 +529,9 @@ def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
     df["area_outlet"] = np.pi * r0_out**2
     df["thickness"] = get_thickness(r0_in)
 
-    flow, SV = sample_flow(T = 60/HR)
+    flow, SV, dt = sample_flow(T = 60/HR, dt=(60/HR)/1000)
 
-    return (df, flow, SV, p_sys, p_dia, HR)
+    return (df, flow, SV, p_sys, p_dia, HR, dt)
 
 
 def get_covariance_matrix(df_path: str) -> np.ndarray:
