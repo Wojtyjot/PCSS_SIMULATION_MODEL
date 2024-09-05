@@ -96,7 +96,7 @@ def sample_segment_params(df: pd.DataFrame, template: str) -> pd.DataFrame:
     return df
 
 
-def sample_system_params() -> Tuple[np.float, np.float, np.float, np.float]:
+def sample_system_params() -> Tuple[float, float, float, float]:
     """
     Function samples system parameters from predefined uniform distribution
 
@@ -116,7 +116,7 @@ def sample_system_params() -> Tuple[np.float, np.float, np.float, np.float]:
 
     return (HR, SV, P_sys, P_dia)
 
-def sample_pressure() -> Tuple[np.float, np.float]:
+def sample_pressure() -> Tuple[float, float]:
     """
     Function samples pressure for model
 
@@ -127,7 +127,7 @@ def sample_pressure() -> Tuple[np.float, np.float]:
     return (P_sys, P_dia)
 
 
-def sample_Q_hat() -> np.float:
+def sample_Q_hat() -> float:
     """
     Function samples Q_hat from predefined uniform distribution
     pfv [cm/s]?
@@ -251,13 +251,13 @@ def get_Q_database() -> np.array:
 
 def get_Q_SV(
     Q_hat: float, T: float, tau: float, dt: float
-) -> Tuple[np.array, np.float]:
+) -> Tuple[np.array, float]:
     """
     Function calculates the stroke volume by integrating the flow over time
 
     SV = ∫Q(t) dt from 0 to T
     """
-    t = np.arange(0, T, dt)
+    t = np.linspace(0,T,1000)
     Q = get_Q(Q_hat, t, tau)
     # Q = get_Q_v2(Q_hat, tau, t)
     # Q = get_Q_Zikic(Q_hat, t, 0.3, 0.35)
@@ -269,18 +269,18 @@ def get_Q_SV(
 
 def sample_flow(
     T: Optional[float] = 1.0, dt: Optional[float] = 0.001, tau: Optional[float] = 0.35
-) -> Tuple[np.ndarray, np.float]:
+) -> Tuple[np.ndarray, float]:
     """
     Function samples flow from hardcoded distribution and SV[ml]
     """
-    t = np.arange(0, T, dt)
+    t, dt = np.linspace(0, T, 1000, retstep=True)
     Q_hat = sample_Q_hat()
     # Q_hat = 485.0
     Q, SV = get_Q_SV(Q_hat, T, tau, dt)
     flow = np.column_stack((t, Q))
-    return (flow, SV)
+    return (flow, SV, dt)
 
-def sample_HR() -> np.float:
+def sample_HR() -> float:
     """
     Function samples heart rate from predefined uniform distribution
     """
@@ -510,7 +510,7 @@ def get_thickness(r0_in: np.ndarray) -> np.ndarray:
     return h
 
 
-def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
+def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, float]:
     """
     Function samples COW and flow parameters from predefined uniform
     distributions and adds them to df
@@ -529,9 +529,9 @@ def sample(df: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, np.float]:
     df["area_outlet"] = np.pi * r0_out**2
     df["thickness"] = get_thickness(r0_in)
 
-    flow, SV = sample_flow(T = 60/HR)
+    flow, SV, dt = sample_flow(T = 60/HR, dt=(60/HR)/1000)
 
-    return (df, flow, SV, p_sys, p_dia, HR)
+    return (df, flow, SV, p_sys, p_dia, HR, dt)
 
 
 def get_covariance_matrix(df_path: str) -> np.ndarray:

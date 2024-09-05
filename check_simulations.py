@@ -15,7 +15,7 @@ def check_num_converged(path_folder: str) -> int:
     """
     path_folder = Path(path_folder)
     num_converged = 0
-    for folder in ["DATA", "DATA_2", "DATA_3", "DATA_4"]:
+    for folder in ["DATA"]:
         path = path_folder / folder
         for i in range(1, 1200):
             results_dir = path / f"RESULTS_{i}"
@@ -98,7 +98,7 @@ def create_velocity_plots(results_folder: str, arteries: List[str], figures_path
     figures_path = Path(figures_path)
     for artery in arteries:
         fig, ax = plt.subplots()
-        for folder in ["DATA", "DATA_2"]:
+        for folder in ["DATA"]:
             path = results_folder / folder
             for i in range(1, 1200):
                 results_dir = path / f"RESULTS_{i}"
@@ -127,7 +127,7 @@ def create_pressure_plots(results_folder: str, arteries: List[str], figures_path
     figures_path = Path(figures_path)
     for artery in arteries:
         fig, ax = plt.subplots()
-        for folder in ["DATA", "DATA_2"]:
+        for folder in ["DATA"]:
             path = results_folder / folder
             for i in range(1, 1200):
                 results_dir = path / f"RESULTS_{i}"
@@ -153,7 +153,7 @@ def create_area_plots(results_folder: str, arteries: List[str], figures_path: st
     figures_path = Path(figures_path)
     for artery in arteries:
         fig, ax = plt.subplots()
-        for folder in ["DATA", "DATA_2"]:
+        for folder in ["DATA"]:
             path = results_folder / folder
             for i in range(1, 1200):
                 results_dir = path / f"RESULTS_{i}"
@@ -179,7 +179,7 @@ def create_flow_plots(results_folder: str, arteries: List[str], figures_path: st
     figures_path = Path(figures_path)
     for artery in arteries:
         fig, ax = plt.subplots()
-        for folder in ["DATA", "DATA_2"]:
+        for folder in ["DATA"]:
             path = results_folder / folder
             for i in range(1, 1200):
                 results_dir = path / f"RESULTS_{i}"
@@ -216,7 +216,7 @@ def compute_dataset_parameters(results_folder: str, arteries: List[str], figures
         result_dict[f"{artery}_r0_in"] = list()
     
     for artery in arteries:
-        for folder in ["DATA", "DATA_2"]:
+        for folder in ["DATA"]:
             path = results_folder / folder
             for i in range(1, 1200):
                 results_dir = path / f"RESULTS_{i}"
@@ -286,7 +286,7 @@ def compute_dataset_parameters(results_folder: str, arteries: List[str], figures
 
     # create table from rsults rows = names of artries, cols = mean and std of MAP, MFV and area
     df = pd.DataFrame.from_dict(new_results, orient="index")
-    df.to_csv(figures_path / "RESULTS_PCSS.csv")
+    df.to_csv(figures_path / "RESULTS_RANDOM.csv")
     
 
 def main():
@@ -294,8 +294,8 @@ def main():
     #potem sprawdzic czy w RESULTS_i jest plik .dat
 
     # checking pat
-    figures_path = "/mnt/storage_4/home/wojciech.kaczmarek/pl0110-01/project_data/Figures"
-    results_folder = "/mnt/storage_4/home/wojciech.kaczmarek/pl0110-01/project_data"
+    figures_path = "/media/wojciech/4C4A0BCF4A0BB52C/Figures"
+    results_folder = "/media/wojciech/4C4A0BCF4A0BB52C"
     arteries = [
         "L_MCA",
         "L_PCA_P1",
@@ -316,11 +316,11 @@ def main():
         "Ascending_aorta",
     ]
 
-    #create_area_plots(results_folder, arteries, figures_path)
-    #create_velocity_plots(results_folder, arteries, figures_path)
-    #create_pressure_plots(results_folder, arteries, figures_path)
-    #create_flow_plots(results_folder, arteries, figures_path)
-    #compute_dataset_parameters(results_folder, arteries, figures_path)
+    create_area_plots(results_folder, arteries, figures_path)
+    create_velocity_plots(results_folder, arteries, figures_path)
+    create_pressure_plots(results_folder, arteries, figures_path)
+    create_flow_plots(results_folder, arteries, figures_path)
+    compute_dataset_parameters(results_folder, arteries, figures_path)
     num_converged = check_num_converged(results_folder)
     with open(Path(results_folder) / "num_converged.txt", "w") as f:
         f.write(str(num_converged))
